@@ -112,17 +112,6 @@ data class Resistor(
     fun resistance(): Double {
         return num.toDouble() * 10.0.pow(prefix)
     }
-
-    fun formatResistance(): String {
-        val r = resistance()
-        val fmt = DecimalFormat("#.##")
-        return when {
-            r < 1000 -> "${fmt.format(r)}Ω"
-            r < 1000_000 -> "${fmt.format(r / 1000)}kΩ"
-            r < 1000_000_000 -> "${fmt.format(r / 1000_000)}MΩ"
-            else -> "${fmt.format(r / 1000_000_000)}GΩ"
-        }
-    }
 }
 
 sealed interface ColorError {

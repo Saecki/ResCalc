@@ -1,21 +1,26 @@
 package local.hapra.rescalc
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,21 +34,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import local.hapra.rescalc.ui.theme.ResCalcTheme
+import java.text.DecimalFormat
+
+val disabledBg = Color(0XFFF2F2F2)
 
 fun ResColor.toColor(): Pair<Color, Color> {
     return when (this) {
         ResColor.Silver -> Color(0xFFE6E8FA) to Color.Black
-        ResColor.Gold -> Color(0xFFff9700) to Color.White
+        ResColor.Gold -> Color(0xFFFFC700) to Color.Black
         ResColor.Black -> Color.Black to Color.White
         ResColor.Brown -> Color(0xFF6D3F20) to Color.White
         ResColor.Red -> Color.Red to Color.White
-        ResColor.Orange -> Color(0xFFF49B02) to Color.White
-        ResColor.Yellow -> Color.Yellow to Color.Black
+        ResColor.Orange -> Color(0xFFF48B02) to Color.White
+        ResColor.Yellow -> Color(0xFFF5ED06) to Color.Black
         ResColor.Green -> Color.Green to Color.Black
         ResColor.Blue -> Color.Blue to Color.White
         ResColor.Violet -> Color.Magenta to Color.White
@@ -54,24 +61,35 @@ fun ResColor.toColor(): Pair<Color, Color> {
 
 fun Int.multiplier(): String {
     return when (this) {
-        -2 -> "x0.01"
-        -1 -> "x0.1"
-        0 -> "x1"
-        1 -> "x10"
-        2 -> "x100"
-        3 -> "x1k"
-        4 -> "x10k"
-        5 -> "x100k"
-        6 -> "x1M"
-        7 -> "x10M"
-        8 -> "x100M"
-        9 -> "x1G"
+        -2 -> "×0.01"
+        -1 -> "×0.1"
+        0 -> "×1"
+        1 -> "×10"
+        2 -> "×100"
+        3 -> "×1k"
+        4 -> "×10k"
+        5 -> "×100k"
+        6 -> "×1M"
+        7 -> "×10M"
+        8 -> "×100M"
+        9 -> "×1G"
         else -> error("unimplemented")
     }
 }
 
 fun Double.tolerance(): String {
-    return "${this * 100}%"
+    return DecimalFormat("#.##%").format(this)
+}
+
+fun Resistor.formatResistance(): String {
+    val r = resistance()
+    val fmt = DecimalFormat("#.##")
+    return when {
+        r < 1000 -> "${fmt.format(r)}Ω"
+        r < 1000_000 -> "${fmt.format(r / 1000)}kΩ"
+        r < 1000_000_000 -> "${fmt.format(r / 1000_000)}MΩ"
+        else -> "${fmt.format(r / 1000_000_000)}GΩ"
+    }
 }
 
 class MainViewModel(
@@ -112,42 +130,52 @@ class MainActivity : ComponentActivity() {
             val resistor by model.resistor
 
             ResCalcTheme {
+                Log.d("", "dark theme: ${isSystemInDarkTheme()}")
                 Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
-                        .padding(16.dp)
+                        .padding(8.dp)
                         .fillMaxSize()
                 ) {
-                    Text(text = resistor?.formatResistance().orEmpty())
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = resistor?.formatResistance().orEmpty(),
+                            style = MaterialTheme.typography.headlineMedium
+                        )
+                    }
                     Row(
                         horizontalArrangement = Arrangement.Absolute.SpaceEvenly,
                         verticalAlignment = Alignment.Top,
                         modifier = Modifier.fillMaxSize()
                     ) {
                         DigitColumn(
-                            selectedState = model.digitColors[0],
+                            selectionState = model.digitColors[0],
                             colors = ResColor.FOR_FIRST_DIGIT
                         )
                         DigitColumn(
-                            selectedState = model.digitColors[1],
+                            selectionState = model.digitColors[1],
                             colors = ResColor.FOR_OTHER_DIGIT
                         )
                         DigitColumn(
-                            selectedState = model.digitColors[2],
+                            selectionState = model.digitColors[2],
                             colors = ResColor.FOR_OTHER_DIGIT
                         )
 
                         MultiplierColumn(
-                            selectedState = model.multiplierColor,
+                            selectionState = model.multiplierColor,
                             colors = ResColor.FOR_MULTIPLIER,
                         )
 
                         ToleranceColumn(
-                            selectedState = model.toleranceColor,
+                            selectionState = model.toleranceColor,
                             colors = ResColor.FOR_TOLERANCE,
                         )
 
                         TempCoefficientColumn(
-                            selectedState = model.tempCoefficientColor,
+                            selectionState = model.tempCoefficientColor,
                             colors = ResColor.FOR_TEMP_COEFFICIENT,
                         )
                     }
@@ -159,11 +187,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun DigitColumn(
-    selectedState: MutableState<Pair<ResColor, UInt>?>,
+    selectionState: MutableState<Pair<ResColor, UInt>?>,
     colors: List<Pair<ResColor, UInt?>>,
 ) {
     ColorColumn(
-        selectedState = selectedState,
+        selectionState = selectionState,
         colors = colors,
         display = { it.toString() },
     )
@@ -171,11 +199,11 @@ fun DigitColumn(
 
 @Composable
 fun MultiplierColumn(
-    selectedState: MutableState<Pair<ResColor, Int>?>,
+    selectionState: MutableState<Pair<ResColor, Int>?>,
     colors: List<Pair<ResColor, Int>>,
 ) {
     ColorColumn(
-        selectedState = selectedState,
+        selectionState = selectionState,
         colors = colors,
         display = { it.multiplier() }
     )
@@ -183,11 +211,11 @@ fun MultiplierColumn(
 
 @Composable
 fun ToleranceColumn(
-    selectedState: MutableState<Pair<ResColor, Double>?>,
+    selectionState: MutableState<Pair<ResColor, Double>?>,
     colors: List<Pair<ResColor, Double?>>,
 ) {
     ColorColumn(
-        selectedState = selectedState,
+        selectionState = selectionState,
         colors = colors,
         display = { it.tolerance() }
     )
@@ -195,11 +223,11 @@ fun ToleranceColumn(
 
 @Composable
 fun TempCoefficientColumn(
-    selectedState: MutableState<Pair<ResColor, UInt>?>,
+    selectionState: MutableState<Pair<ResColor, UInt>?>,
     colors: List<Pair<ResColor, UInt?>>,
 ) {
     ColorColumn(
-        selectedState = selectedState,
+        selectionState = selectionState,
         colors = colors,
         display = { it.toString() }
     )
@@ -207,30 +235,29 @@ fun TempCoefficientColumn(
 
 @Composable
 fun <T> ColorColumn(
-    selectedState: MutableState<Pair<ResColor, T>?>,
+    selectionState: MutableState<Pair<ResColor, T>?>,
     colors: List<Pair<ResColor, T?>>,
     display: (T) -> String,
 ) {
-    var selected by selectedState
+    var selection by selectionState
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val disabledColor = (Color(0XFFEFEFEF) to Color.Black)
-
-        selected?.let { (col, value) ->
-            ColorLine(color = col.toColor(), text = display(value))
+        selection?.let { (col, value) ->
+            val (bg, _) = col.toColor()
+            ColorLine(color = bg, text = display(value))
         } ?: run {
-            ColorLine(color = disabledColor, text = "")
+            ColorLine(color = disabledBg, text = null)
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         colors.forEach { (col, value) ->
-            val isSelected = selected?.let { (curCol, _) -> curCol == col }
+            val isSelected = selection?.let { (curCol, _) -> curCol == col }
             val text = value?.let(display).orEmpty()
             val onClick = value?.let {
-                { selected = col to value }
+                { selection = col to value }
             }
             ColorRect(
                 color = col.toColor(),
@@ -243,19 +270,21 @@ fun <T> ColorColumn(
 }
 
 @Composable
-fun ColorLine(color: Pair<Color, Color>, text: String) {
-    val (bg, _) = color
+fun ColorLine(color: Color, text: String?) {
     Surface(
         shape = RoundedCornerShape(2.dp),
-        color = bg,
+        color = color,
         modifier = Modifier
-            .width(16.dp)
+            .width(12.dp)
             .height(48.dp)
     ) {}
+
+    val textColor = if (text != null) Color.Black else Color.LightGray
     Text(
-        text = text,
+        text = text ?: "?",
         maxLines = 1,
-        style = TextStyle(color = Color.Black),
+        color = textColor,
+        style = MaterialTheme.typography.bodyMedium,
     )
 }
 
@@ -272,7 +301,7 @@ fun ColorRect(
     val (bg, fg) = color
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = if (enabled) bg else Color(0XFFEFEFEF),
+        color = if (enabled) bg else disabledBg,
         tonalElevation = elevation,
         shadowElevation = elevation,
         border = if (selected == true) {
@@ -289,13 +318,15 @@ fun ColorRect(
                 onClick?.invoke()
             }
     ) {
-        Text(
-            text = text,
-            maxLines = 1,
-            textAlign = TextAlign.Center,
-            style = TextStyle(color = fg),
-            modifier = Modifier.fillMaxSize(1f)
-        )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Text(
+                text = text,
+                style = TextStyle(color = fg),
+            )
+        }
     }
 }
 
@@ -304,7 +335,7 @@ fun ColorRect(
 fun GreetingPreview() {
     ResCalcTheme {
         DigitColumn(
-            selectedState = remember { mutableStateOf(null) },
+            selectionState = remember { mutableStateOf(null) },
             colors = ResColor.FOR_FIRST_DIGIT
         )
     }
