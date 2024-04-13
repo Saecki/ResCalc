@@ -1,13 +1,6 @@
 package local.hapra.rescalc
 
-import local.hapra.rescalc.Result.*
-import java.text.DecimalFormat
 import kotlin.math.pow
-
-sealed class Result<T, E> {
-    class Ok<T, E>(val value: T) : Result<T, E>()
-    class Err<T, E>(val error: E) : Result<T, E>()
-}
 
 enum class ResColor(
     val prefix: Int,
@@ -71,29 +64,6 @@ data class Resistor(
     val tempCoefficient: UInt,
 ) {
     companion object {
-        fun parse(colors: Array<ResColor>): Result<Resistor, ColorError> {
-            assert(colors.size == 6)
-            val (col0, col1, col2) = colors.sliceArray(0..2)
-
-            val digits = arrayOf(
-                col0.firstDigit() ?: return Err(ColorError.InvalidDigit(0U, col0)),
-                col1.otherDigit() ?: return Err(ColorError.InvalidDigit(1U, col1)),
-                col2.otherDigit() ?: return Err(ColorError.InvalidDigit(2U, col2)),
-            )
-
-            val (col3, col4, col5) = colors.sliceArray(3..5)
-
-            val prefix = col3.prefix
-
-            val tolerance = col4.tolerance ?: return Err(ColorError.InvalidTolerance(col4))
-
-            val tempCoefficient =
-                col5.tempCoefficient ?: return Err(ColorError.InvalidTolerance(col5))
-
-            val resistor = from(digits, prefix, tolerance, tempCoefficient)
-            return Ok(resistor)
-        }
-
         fun from(
             digits: Array<UInt>,
             prefix: Int,
@@ -112,18 +82,4 @@ data class Resistor(
     fun resistance(): Double {
         return num.toDouble() * 10.0.pow(prefix)
     }
-}
-
-sealed interface ColorError {
-    class InvalidDigit(override val index: UInt, val color: ResColor) : ColorError
-
-    class InvalidTolerance(val color: ResColor) : ColorError {
-        override val index = 4U
-    }
-
-    class InvalidTempCoefficient(val color: ResColor) : ColorError {
-        override val index = 5U
-    }
-
-    val index: UInt
 }
