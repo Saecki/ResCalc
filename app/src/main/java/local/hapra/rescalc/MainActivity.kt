@@ -41,8 +41,6 @@ import androidx.lifecycle.ViewModel
 import local.hapra.rescalc.ui.theme.ResCalcTheme
 import java.text.DecimalFormat
 
-val disabledBg = Color(0XFFF2F2F2)
-
 fun ResColor.toColor(): Pair<Color, Color> {
     return when (this) {
         ResColor.Silver -> Color(0xFFE6E8FA) to Color.Black
@@ -131,10 +129,10 @@ class MainActivity : ComponentActivity() {
             val resistor by model.resistor
 
             ResCalcTheme {
-                Log.d("", "dark theme: ${isSystemInDarkTheme()}")
                 Column(
                     verticalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
+                        .background(color = MaterialTheme.colorScheme.background)
                         .padding(8.dp)
                         .fillMaxSize()
                 ) {
@@ -209,7 +207,10 @@ fun Resistance(label: String, value: Double?, modifier: Modifier) {
     Column(
         modifier = modifier.padding(vertical = 16.dp)
     ) {
-        val textColor = if (value != null) Color.Black else disabledBg
+        val textColor = when {
+            value != null -> MaterialTheme.colorScheme.onBackground
+            else -> MaterialTheme.colorScheme.surface
+        }
         Text(
             text = value?.formatResistance() ?: "●",
             textAlign = TextAlign.Center,
@@ -220,6 +221,7 @@ fun Resistance(label: String, value: Double?, modifier: Modifier) {
         Text(
             text = label,
             textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onBackground,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.fillMaxWidth()
         )
@@ -303,7 +305,7 @@ fun <T> ColorColumn(
                 onClick = { selectionState.value = null },
             )
         } ?: run {
-            ColorLine(color = disabledBg)
+            ColorLine(color = MaterialTheme.colorScheme.surface)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -343,7 +345,10 @@ fun ColorLine(color: Color, text: String? = null, onClick: (() -> Unit)? = null)
                 .height(48.dp)
         ) {}
 
-        val textColor = if (text != null) Color.Black else disabledBg
+        val textColor = when {
+            (text != null) -> MaterialTheme.colorScheme.onBackground
+            else -> MaterialTheme.colorScheme.surface
+        }
         Text(
             text = text ?: "●",
             maxLines = 1,
@@ -397,7 +402,7 @@ fun ColorRect(
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = if (enabled) bg else disabledBg,
+            color = if (enabled) bg else MaterialTheme.colorScheme.surface,
             tonalElevation = elevation,
             shadowElevation = elevation,
             modifier = Modifier
