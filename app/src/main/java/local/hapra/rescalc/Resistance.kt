@@ -82,4 +82,12 @@ data class Resistor(
     fun resistance(): Double {
         return num.toDouble() * 10.0.pow(prefix)
     }
+
+    fun minResistance(): Double {
+        return resistance() * (1.0 - tolerance)
+    }
+
+    fun maxResistance(): Double {
+        return resistance() * (1.0 + tolerance)
+    }
 }

@@ -5,7 +5,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -28,13 +28,14 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import local.hapra.rescalc.ui.theme.ResCalcTheme
@@ -81,8 +82,8 @@ fun Double.tolerance(): String {
     return DecimalFormat("#.##%").format(this)
 }
 
-fun Resistor.formatResistance(): String {
-    val r = resistance()
+fun Double.formatResistance(): String {
+    val r = this
     val fmt = DecimalFormat("#.##")
     return when {
         r < 1000 -> "${fmt.format(r)}Ω"
@@ -132,20 +133,32 @@ class MainActivity : ComponentActivity() {
             ResCalcTheme {
                 Log.d("", "dark theme: ${isSystemInDarkTheme()}")
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .padding(8.dp)
                         .fillMaxSize()
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(
-                            text = resistor?.formatResistance().orEmpty(),
-                            style = MaterialTheme.typography.headlineMedium
+                        Resistance(
+                            label = "min",
+                            value = resistor?.minResistance(),
+                            modifier = Modifier.weight(1f),
+                        )
+                        Resistance(
+                            label = "resistance", value = resistor?.resistance(),
+                            modifier = Modifier.weight(1f),
+                        )
+                        Resistance(
+                            label = "max",
+                            value = resistor?.maxResistance(),
+                            modifier = Modifier.weight(1f),
                         )
                     }
+
                     Row(
                         horizontalArrangement = Arrangement.Absolute.SpaceEvenly,
                         verticalAlignment = Alignment.Top,
@@ -153,30 +166,36 @@ class MainActivity : ComponentActivity() {
                     ) {
                         DigitColumn(
                             selectionState = model.digitColors[0],
-                            colors = ResColor.FOR_FIRST_DIGIT
+                            colors = ResColor.FOR_FIRST_DIGIT,
+                            modifier = Modifier.weight(1f),
                         )
                         DigitColumn(
                             selectionState = model.digitColors[1],
-                            colors = ResColor.FOR_OTHER_DIGIT
+                            colors = ResColor.FOR_OTHER_DIGIT,
+                            modifier = Modifier.weight(1f),
                         )
                         DigitColumn(
                             selectionState = model.digitColors[2],
-                            colors = ResColor.FOR_OTHER_DIGIT
+                            colors = ResColor.FOR_OTHER_DIGIT,
+                            modifier = Modifier.weight(1f),
                         )
 
                         MultiplierColumn(
                             selectionState = model.multiplierColor,
                             colors = ResColor.FOR_MULTIPLIER,
+                            modifier = Modifier.weight(1f),
                         )
 
                         ToleranceColumn(
                             selectionState = model.toleranceColor,
                             colors = ResColor.FOR_TOLERANCE,
+                            modifier = Modifier.weight(1f),
                         )
 
                         TempCoefficientColumn(
                             selectionState = model.tempCoefficientColor,
                             colors = ResColor.FOR_TEMP_COEFFICIENT,
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -186,14 +205,38 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+fun Resistance(label: String, value: Double?, modifier: Modifier) {
+    Column(
+        modifier = modifier.padding(vertical = 16.dp)
+    ) {
+        val textColor = if (value != null) Color.Black else disabledBg
+        Text(
+            text = value?.formatResistance() ?: "●",
+            textAlign = TextAlign.Center,
+            color = textColor,
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = label,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
 fun DigitColumn(
     selectionState: MutableState<Pair<ResColor, UInt>?>,
     colors: List<Pair<ResColor, UInt?>>,
+    modifier: Modifier,
 ) {
     ColorColumn(
         selectionState = selectionState,
         colors = colors,
         display = { it.toString() },
+        modifier = modifier,
     )
 }
 
@@ -201,11 +244,13 @@ fun DigitColumn(
 fun MultiplierColumn(
     selectionState: MutableState<Pair<ResColor, Int>?>,
     colors: List<Pair<ResColor, Int>>,
+    modifier: Modifier,
 ) {
     ColorColumn(
         selectionState = selectionState,
         colors = colors,
-        display = { it.multiplier() }
+        display = { it.multiplier() },
+        modifier = modifier,
     )
 }
 
@@ -213,11 +258,13 @@ fun MultiplierColumn(
 fun ToleranceColumn(
     selectionState: MutableState<Pair<ResColor, Double>?>,
     colors: List<Pair<ResColor, Double?>>,
+    modifier: Modifier,
 ) {
     ColorColumn(
         selectionState = selectionState,
         colors = colors,
-        display = { it.tolerance() }
+        display = { it.tolerance() },
+        modifier = modifier,
     )
 }
 
@@ -225,11 +272,13 @@ fun ToleranceColumn(
 fun TempCoefficientColumn(
     selectionState: MutableState<Pair<ResColor, UInt>?>,
     colors: List<Pair<ResColor, UInt?>>,
+    modifier: Modifier,
 ) {
     ColorColumn(
         selectionState = selectionState,
         colors = colors,
-        display = { it.toString() }
+        display = { it.toString() },
+        modifier = modifier,
     )
 }
 
@@ -238,23 +287,29 @@ fun <T> ColorColumn(
     selectionState: MutableState<Pair<ResColor, T>?>,
     colors: List<Pair<ResColor, T?>>,
     display: (T) -> String,
+    modifier: Modifier,
 ) {
     var selection by selectionState
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier,
     ) {
         selection?.let { (col, value) ->
             val (bg, _) = col.toColor()
-            ColorLine(color = bg, text = display(value))
+            ColorLine(
+                color = bg,
+                text = display(value),
+                onClick = { selectionState.value = null },
+            )
         } ?: run {
-            ColorLine(color = disabledBg, text = null)
+            ColorLine(color = disabledBg)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         colors.forEach { (col, value) ->
-            val isSelected = selection?.let { (curCol, _) -> curCol == col }
+            val isSelected = selection?.first == col
             val text = value?.let(display).orEmpty()
             val onClick = value?.let {
                 { selection = col to value }
@@ -270,73 +325,94 @@ fun <T> ColorColumn(
 }
 
 @Composable
-fun ColorLine(color: Color, text: String?) {
-    Surface(
-        shape = RoundedCornerShape(2.dp),
-        color = color,
+fun ColorLine(color: Color, text: String? = null, onClick: (() -> Unit)? = null) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(12.dp)
-            .height(48.dp)
-    ) {}
-
-    val textColor = if (text != null) Color.Black else Color.LightGray
-    Text(
-        text = text ?: "?",
-        maxLines = 1,
-        color = textColor,
-        style = MaterialTheme.typography.bodyMedium,
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick?.invoke() }
+            .padding(8.dp)
     )
+    {
+        Surface(
+            shape = RoundedCornerShape(2.dp),
+            color = color,
+            modifier = Modifier
+                .width(12.dp)
+                .height(48.dp)
+        ) {}
+
+        val textColor = if (text != null) Color.Black else disabledBg
+        Text(
+            text = text ?: "●",
+            maxLines = 1,
+            color = textColor,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
 }
 
 @Composable
 fun ColorRect(
     color: Pair<Color, Color>,
     text: String,
-    selected: Boolean? = null,
+    selected: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     val enabled = onClick != null
-    val elevation = if (enabled) 8.dp else 0.dp
+    val elevation = when {
+        selected -> 4.dp
+        enabled -> 2.dp
+        else -> 0.dp
+    }
 
     val (bg, fg) = color
+    val padding = 2.dp
+    val size = 48.dp + (padding * 2)
+    val shape = RoundedCornerShape(12.dp + padding)
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (enabled) bg else disabledBg,
-        tonalElevation = elevation,
-        shadowElevation = elevation,
-        border = if (selected == true) {
-            BorderStroke(
-                width = 2.dp, color = fg,
-            )
-        } else {
-            null
-        },
+        onClick = { onClick?.invoke() },
+        enabled = onClick != null,
+        shape = shape,
+        color = Color.Transparent,
         modifier = Modifier
-            .width(48.dp)
+            .width(size)
             .aspectRatio(1.0f)
-            .clickable(enabled = onClick != null) {
-                onClick?.invoke()
+            .run {
+                if (selected) {
+                    background(
+                        shape = shape,
+                        brush = Brush.sweepGradient(
+                            0.0f to Color(0xFFD15CFC),
+                            0.3f to Color(0xFF6A82FB),
+                            0.7f to Color(0xFF1FF189),
+                            1.0f to Color(0xFFD15CFC),
+                        )
+                    )
+                } else {
+                    this
+                }
             }
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (enabled) bg else disabledBg,
+            tonalElevation = elevation,
+            shadowElevation = elevation,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
         ) {
-            Text(
-                text = text,
-                style = TextStyle(color = fg),
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Text(
+                    text = text,
+                    style = TextStyle(color = fg),
+                )
+            }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ResCalcTheme {
-        DigitColumn(
-            selectionState = remember { mutableStateOf(null) },
-            colors = ResColor.FOR_FIRST_DIGIT
-        )
     }
 }
