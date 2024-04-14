@@ -4,7 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -382,24 +383,22 @@ fun ColorRect(
         enabled -> 2.dp
         else -> 0.dp
     }
-    val rounding = when {
-        selected -> size / 2
-        else -> 12.dp
-    }
+    val rounding by animateDpAsState(
+        targetValue = if (selected) size / 2 else 12.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessLow)
+    )
     val outerSize = size + (padding * 2)
+    val innerShape = RoundedCornerShape(rounding)
     val outerShape = RoundedCornerShape(rounding + padding)
     Surface(
-        onClick = { onClick?.invoke() },
-        enabled = onClick != null,
-        shape = outerShape,
         color = Color.Transparent,
         modifier = Modifier
-            .width(outerSize)
-            .aspectRatio(1.0f)
+            .size(outerSize)
+            .clip(outerShape)
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
             .run {
                 if (selected) {
                     background(
-                        shape = outerShape,
                         brush = Brush.sweepGradient(
                             0.0f to Color(0xFFD15CFC),
                             0.3f to Color(0xFF6A82FB),
@@ -413,13 +412,13 @@ fun ColorRect(
             }
     ) {
         Surface(
-            shape = RoundedCornerShape(rounding),
             color = if (enabled) bg else MaterialTheme.colorScheme.surface,
             tonalElevation = elevation,
             shadowElevation = elevation,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clip(innerShape)
         ) {
             Box(
                 contentAlignment = Alignment.Center,
