@@ -1,13 +1,12 @@
 package local.hapra.rescalc
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -311,7 +311,7 @@ fun <T> ColorColumn(
         Spacer(modifier = Modifier.height(8.dp))
 
         colors.forEach { (col, value) ->
-            val isSelected = selection?.first == col
+            val selected = selection?.first == col
             val text = value?.let(display).orEmpty()
             val onClick = value?.let {
                 { selection = col to value }
@@ -319,7 +319,7 @@ fun <T> ColorColumn(
             ColorRect(
                 color = col.toColor(),
                 text = text,
-                selected = isSelected,
+                selected = selected,
                 onClick = onClick,
             )
         }
@@ -337,9 +337,15 @@ fun ColorLine(color: Color, text: String? = null, onClick: (() -> Unit)? = null)
             .padding(8.dp)
     )
     {
+        val elevation = when {
+            text != null -> 2.dp
+            else -> 0.dp
+        }
         Surface(
             shape = RoundedCornerShape(2.dp),
             color = color,
+            tonalElevation = elevation,
+            shadowElevation = elevation,
             modifier = Modifier
                 .width(12.dp)
                 .height(48.dp)
@@ -365,29 +371,35 @@ fun ColorRect(
     selected: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
+    val (bg, fg) = color
     val enabled = onClick != null
+
+    val padding = 2.dp
+    val size = 48.dp
+
     val elevation = when {
         selected -> 4.dp
         enabled -> 2.dp
         else -> 0.dp
     }
-
-    val (bg, fg) = color
-    val padding = 2.dp
-    val size = 48.dp + (padding * 2)
-    val shape = RoundedCornerShape(12.dp + padding)
+    val rounding = when {
+        selected -> size / 2
+        else -> 12.dp
+    }
+    val outerSize = size + (padding * 2)
+    val outerShape = RoundedCornerShape(rounding + padding)
     Surface(
         onClick = { onClick?.invoke() },
         enabled = onClick != null,
-        shape = shape,
+        shape = outerShape,
         color = Color.Transparent,
         modifier = Modifier
-            .width(size)
+            .width(outerSize)
             .aspectRatio(1.0f)
             .run {
                 if (selected) {
                     background(
-                        shape = shape,
+                        shape = outerShape,
                         brush = Brush.sweepGradient(
                             0.0f to Color(0xFFD15CFC),
                             0.3f to Color(0xFF6A82FB),
@@ -401,7 +413,7 @@ fun ColorRect(
             }
     ) {
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(rounding),
             color = if (enabled) bg else MaterialTheme.colorScheme.surface,
             tonalElevation = elevation,
             shadowElevation = elevation,
