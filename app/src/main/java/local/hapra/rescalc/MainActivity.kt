@@ -109,15 +109,17 @@ class MainViewModel(
         val tolerance by toleranceColor
         val tempCoefficient by tempCoefficientColor
 
+        val digits = sequenceOf(digit0?.second, digit1?.second, digit2?.second)
+            .filterNotNull()
+            .toList()
+            .toTypedArray()
+        if (digits.size < 2) return@derivedStateOf null
+
         Resistor.from(
-            arrayOf(
-                digit0?.let { (_, d) -> d } ?: return@derivedStateOf null,
-                digit1?.let { (_, d) -> d } ?: return@derivedStateOf null,
-                digit2?.let { (_, d) -> d } ?: return@derivedStateOf null,
-            ),
+            digits,
             prefix?.let { (_, d) -> d } ?: return@derivedStateOf null,
             tolerance?.let { (_, d) -> d } ?: return@derivedStateOf null,
-            tempCoefficient?.let { (_, d) -> d } ?: return@derivedStateOf null,
+            tempCoefficient?.let { (_, d) -> d },
         )
     }
 }
@@ -385,7 +387,7 @@ fun ColorRect(
     }
     val rounding by animateDpAsState(
         targetValue = if (selected) size / 2 else 12.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessLow)
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
     )
     val outerSize = size + (padding * 2)
     val innerShape = RoundedCornerShape(rounding)

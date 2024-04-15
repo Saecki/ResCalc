@@ -61,18 +61,20 @@ data class Resistor(
     val num: UInt,
     val prefix: Int,
     val tolerance: Double,
-    val tempCoefficient: UInt,
+    val tempCoefficient: UInt?,
 ) {
     companion object {
         fun from(
             digits: Array<UInt>,
             prefix: Int,
             tolerance: Double,
-            tempCoefficient: UInt
+            tempCoefficient: UInt?
         ): Resistor {
-            assert(digits.size == 3)
-            val (digit0, digit1, digit2) = digits
-            val num = 100U * digit0 + 10U * digit1 + digit2
+            assert(digits.size in 2..3)
+            var num = 0U
+            digits.reversed().forEachIndexed { i, d ->
+                num += 10f.pow(i).toUInt() * d
+            }
 
             return Resistor(num, prefix, tolerance, tempCoefficient)
         }
