@@ -394,10 +394,11 @@ fun ColorRect(
     val outerShape = RoundedCornerShape(rounding + padding)
     Surface(
         color = Color.Transparent,
+        onClick = { onClick?.invoke() },
+        enabled = onClick != null,
         modifier = Modifier
             .size(outerSize)
             .clip(outerShape)
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
             .run {
                 if (selected) {
                     background(
@@ -415,12 +416,12 @@ fun ColorRect(
     ) {
         Surface(
             color = if (enabled) bg else MaterialTheme.colorScheme.surface,
+            shape = innerShape,
             tonalElevation = elevation,
             shadowElevation = elevation,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .clip(innerShape)
         ) {
             Box(
                 contentAlignment = Alignment.Center,
