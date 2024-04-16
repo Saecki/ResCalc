@@ -117,9 +117,9 @@ class MainViewModel(
 
         Resistor.from(
             digits,
-            prefix?.let { (_, d) -> d } ?: return@derivedStateOf null,
-            tolerance?.let { (_, d) -> d } ?: return@derivedStateOf null,
-            tempCoefficient?.let { (_, d) -> d },
+            prefix?.second ?: return@derivedStateOf null,
+            tolerance?.second,
+            tempCoefficient?.second
         )
     }
 }

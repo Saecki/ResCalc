@@ -60,14 +60,14 @@ enum class ResColor(
 data class Resistor(
     val num: UInt,
     val prefix: Int,
-    val tolerance: Double,
+    val tolerance: Double?,
     val tempCoefficient: UInt?,
 ) {
     companion object {
         fun from(
             digits: Array<UInt>,
             prefix: Int,
-            tolerance: Double,
+            tolerance: Double?,
             tempCoefficient: UInt?
         ): Resistor {
             assert(digits.size in 2..3)
@@ -85,11 +85,13 @@ data class Resistor(
         return num.toDouble() * 10.0.pow(prefix)
     }
 
-    fun minResistance(): Double {
+    fun minResistance(): Double? {
+        tolerance ?: return null
         return resistance() * (1.0 - tolerance)
     }
 
-    fun maxResistance(): Double {
+    fun maxResistance(): Double? {
+        tolerance ?: return null
         return resistance() * (1.0 + tolerance)
     }
 }
