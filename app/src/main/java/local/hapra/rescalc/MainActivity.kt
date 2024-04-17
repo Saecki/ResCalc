@@ -8,7 +8,11 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +32,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -376,9 +383,25 @@ fun ColorRect(
         enabled -> 2.dp
         else -> 0.dp
     }
-    val rounding by animateDpAsState(
-        targetValue = if (selected) size / 2 else 12.dp,
+    var pressed by remember { mutableStateOf(false) }
+    val selectionOutlineWidth by animateDpAsState(
+        targetValue = if (selected) padding else 0.dp,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "selectionAnimation"
+    )
+    val rounding by animateDpAsState(
+        targetValue = when {
+            selected -> size / 2
+            pressed -> 8.dp
+            else -> 16.dp
+        },
+        animationSpec = spring(
+            stiffness = lerp(
+                Spring.StiffnessMediumLow,
+                Spring.StiffnessMedium,
+                0.5f
+            )
+        ),
         label = "RoundingAnimation",
     )
     val outerSize = size + (padding * 2)
@@ -387,13 +410,31 @@ fun ColorRect(
     Surface(
         color = Color.Transparent,
         shape = outerShape,
-        onClick = { onClick?.invoke() },
-        enabled = onClick != null,
         modifier = Modifier
             .size(outerSize)
+            .clickable(
+                enabled = enabled,
+                onClick = { onClick?.invoke() },
+                role = Role.Button,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+            )
+            .pointerInput(pressed) {
+                if (enabled)
+                    awaitPointerEventScope {
+                        pressed = if (pressed) {
+                            waitForUpOrCancellation()
+                            false
+                        } else {
+                            awaitFirstDown(requireUnconsumed = false)
+                            true
+                        }
+                    }
+            }
             .run {
                 if (selected) {
-                    background(
+                    border(
+                        width = selectionOutlineWidth,
                         shape = outerShape,
                         brush = Brush.sweepGradient(
                             0.0f to Color(0xFFD15CFC),
@@ -427,4 +468,8 @@ fun ColorRect(
             }
         }
     }
+}
+
+fun lerp(start: Float, stop: Float, fraction: Float): Float {
+    return (start * (1 - fraction) + stop * fraction)
 }
