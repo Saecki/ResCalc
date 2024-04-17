@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -151,14 +153,15 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                 ) {
                     Row(
-                        verticalAlignment = Alignment.Top,
+                        verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Resistance(
                             label = "min",
                             value = resistor?.minResistance(),
-                            modifier = Modifier.weight(1f),
+                            valueScale = 0.7f,
+                            modifier = Modifier.weight(1f)
                         )
                         Resistance(
                             label = "resistance", value = resistor?.resistance(),
@@ -167,7 +170,8 @@ class MainActivity : ComponentActivity() {
                         Resistance(
                             label = "max",
                             value = resistor?.maxResistance(),
-                            modifier = Modifier.weight(1f),
+                            valueScale = 0.7f,
+                            modifier = Modifier.weight(1f)
                         )
                     }
 
@@ -259,7 +263,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Resistance(label: String, value: Double?, modifier: Modifier) {
+fun Resistance(label: String, value: Double?, modifier: Modifier, valueScale: Float = 1f) {
     Column(
         modifier = modifier.padding(vertical = 16.dp)
     ) {
@@ -270,6 +274,7 @@ fun Resistance(label: String, value: Double?, modifier: Modifier) {
         Text(
             text = value?.let(::displayResistance) ?: "●",
             textAlign = TextAlign.Center,
+            fontSize = MaterialTheme.typography.headlineMedium.fontSize * valueScale,
             color = textColor,
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.fillMaxWidth()
@@ -312,7 +317,7 @@ fun <T> ColorLine(
             else -> 0.dp
         }
         Surface(
-            shape = RoundedCornerShape(2.dp),
+            shape = RoundedCornerShape(4.dp),
             color = bg,
             tonalElevation = elevation,
             shadowElevation = elevation,
@@ -353,7 +358,13 @@ fun <T> ColorColumn(
             val selected = selection?.first == col
             val text = value?.let(display).orEmpty()
             val onClick = value?.let {
-                { selection = col to value }
+                {
+                    val newSelection = (col to value)
+                    selection = when {
+                        (selection != newSelection) -> newSelection
+                        else -> null
+                    }
+                }
             }
             ColorRect(
                 color = col.toColor(),
@@ -376,37 +387,37 @@ fun ColorRect(
     val enabled = onClick != null
 
     val padding = 2.dp
-    val size = 48.dp
+    val innerSize = 48.dp
+    val outerSize = innerSize + (padding * 2)
+    val animationStiffness = lerp(
+        Spring.StiffnessMediumLow,
+        Spring.StiffnessMedium,
+        0.0f
+    )
 
     val elevation = when {
         selected -> 4.dp
         enabled -> 2.dp
         else -> 0.dp
     }
+
     var pressed by remember { mutableStateOf(false) }
-    val selectionOutlineWidth by animateDpAsState(
-        targetValue = if (selected) padding else 0.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "selectionAnimation"
-    )
     val rounding by animateDpAsState(
-        targetValue = when {
-            selected -> size / 2
-            pressed -> 8.dp
-            else -> 16.dp
-        },
-        animationSpec = spring(
-            stiffness = lerp(
-                Spring.StiffnessMediumLow,
-                Spring.StiffnessMedium,
-                0.5f
-            )
-        ),
+        targetValue = (if (selected) innerSize / 2 else 16.dp)
+                - (if (pressed) 4.dp else 0.dp),
+        animationSpec = spring(stiffness = animationStiffness),
         label = "RoundingAnimation",
     )
-    val outerSize = size + (padding * 2)
     val innerShape = RoundedCornerShape(rounding)
     val outerShape = RoundedCornerShape(rounding + padding)
+
+    val selectionFraction by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = spring(stiffness = animationStiffness),
+        label = "selectionAnimation"
+    )
+    val selectionOutlineWidth = 1.0.dp + 1.0.dp * selectionFraction
+    val selectionOutlineScale = 1f + 0.1f * (1f - selectionFraction)
     Surface(
         color = Color.Transparent,
         shape = outerShape,
@@ -432,17 +443,20 @@ fun ColorRect(
                     }
             }
             .run {
-                if (selected) {
-                    border(
-                        width = selectionOutlineWidth,
-                        shape = outerShape,
-                        brush = Brush.sweepGradient(
-                            0.0f to Color(0xFFD15CFC),
-                            0.3f to Color(0xFF6A82FB),
-                            0.7f to Color(0xFF1FF189),
-                            1.0f to Color(0xFFD15CFC),
+                if (selectionFraction != 0f) {
+                    val alpha = (255f * selectionFraction + 0.5f).toInt()
+                    scale(selectionOutlineScale)
+                        .border(
+                            width = selectionOutlineWidth,
+                            shape = outerShape,
+                            brush = Brush.sweepGradient(
+                                0.0f to Color(red = 0xD1, green = 0x5C, blue = 0xFC, alpha = alpha),
+                                0.3f to Color(red = 0x6A, green = 0x82, blue = 0xFB, alpha = alpha),
+                                0.7f to Color(red = 0x1F, green = 0xF1, blue = 0x89, alpha = alpha),
+                                1.0f to Color(red = 0xD1, green = 0x5C, blue = 0xFC, alpha = alpha),
+                            )
                         )
-                    )
+                        .scale(1f / selectionOutlineScale)
                 } else {
                     this
                 }
