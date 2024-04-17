@@ -8,6 +8,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,13 +19,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,15 +48,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.PathData
+import androidx.compose.ui.graphics.vector.toPath
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
+import androidx.compose.ui.unit.toOffset
 import androidx.lifecycle.ViewModel
 import local.hapra.rescalc.ui.theme.ResCalcTheme
 import java.text.DecimalFormat
@@ -105,6 +124,22 @@ fun displayTolerance(value: Double): String {
 
 fun displayTempCoefficient(value: UInt) = value.toString()
 
+enum class Tab {
+    Input,
+    Graph;
+
+    companion object {
+        val DEFAULT = Input
+    }
+
+    fun next(): Tab {
+        return when (this) {
+            Input -> Graph
+            Graph -> Input
+        }
+    }
+}
+
 class MainViewModel(
     val digitColors: Array<MutableState<Pair<ResColor, UInt>?>> = Array(3) {
         mutableStateOf(null)
@@ -112,6 +147,7 @@ class MainViewModel(
     val multiplierColor: MutableState<Pair<ResColor, Int>?> = mutableStateOf(null),
     val toleranceColor: MutableState<Pair<ResColor, Double>?> = mutableStateOf(null),
     val tempCoefficientColor: MutableState<Pair<ResColor, UInt>?> = mutableStateOf(null),
+    val tab: MutableState<Tab> = mutableStateOf(Tab.DEFAULT)
 ) : ViewModel() {
 
     val resistor = derivedStateOf {
@@ -143,10 +179,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             val model by viewModels<MainViewModel>()
             val resistor by model.resistor
+            var tab by model.tab
 
             ResCalcTheme {
                 Column(
-                    verticalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.Top,
                     modifier = Modifier
                         .background(color = MaterialTheme.colorScheme.background)
                         .padding(8.dp)
@@ -173,6 +210,17 @@ class MainActivity : ComponentActivity() {
                             valueScale = 0.7f,
                             modifier = Modifier.weight(1f)
                         )
+
+                        IconButton(
+                            onClick = { tab = tab.next() },
+                            modifier = Modifier.align(Alignment.CenterVertically)
+                        ) {
+                            val icon = when (tab) {
+                                Tab.Input -> Icons.Filled.KeyboardArrowDown
+                                Tab.Graph -> Icons.Filled.KeyboardArrowUp
+                            }
+                            Icon(imageVector = icon, contentDescription = "toggle graph view")
+                        }
                     }
 
                     Row(
@@ -213,49 +261,11 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    Row(
-                        horizontalArrangement = Arrangement.Absolute.SpaceEvenly,
-                        verticalAlignment = Alignment.Top,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        ColorColumn(
-                            selectionState = model.digitColors[0],
-                            colors = ResColor.FOR_FIRST_DIGIT,
-                            display = ::displayDigit,
-                            modifier = Modifier.weight(1f),
-                        )
-                        ColorColumn(
-                            selectionState = model.digitColors[1],
-                            colors = ResColor.FOR_OTHER_DIGIT,
-                            display = ::displayDigit,
-                            modifier = Modifier.weight(1f),
-                        )
-                        ColorColumn(
-                            selectionState = model.digitColors[2],
-                            colors = ResColor.FOR_OTHER_DIGIT,
-                            display = ::displayDigit,
-                            modifier = Modifier.weight(1f),
-                        )
-
-                        ColorColumn(
-                            selectionState = model.multiplierColor,
-                            colors = ResColor.FOR_MULTIPLIER,
-                            display = ::displayMultiplier,
-                            modifier = Modifier.weight(1f),
-                        )
-                        ColorColumn(
-                            selectionState = model.toleranceColor,
-                            colors = ResColor.FOR_TOLERANCE,
-                            display = ::displayTolerance,
-                            modifier = Modifier.weight(1f),
-                        )
-                        ColorColumn(
-                            selectionState = model.tempCoefficientColor,
-                            colors = ResColor.FOR_TEMP_COEFFICIENT,
-                            display = ::displayTempCoefficient,
-                            modifier = Modifier.weight(1f),
-                        )
+                    if (tab == Tab.Graph) {
+                        Graph()
                     }
+
+                    Input(model)
                 }
             }
         }
@@ -337,6 +347,55 @@ fun <T> ColorLine(
             maxLines = 1,
             color = textColor,
             style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
+fun Input(model: MainViewModel) {
+    Row(
+        horizontalArrangement = Arrangement.Absolute.SpaceEvenly,
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(state = rememberScrollState())
+    ) {
+        ColorColumn(
+            selectionState = model.digitColors[0],
+            colors = ResColor.FOR_FIRST_DIGIT,
+            display = ::displayDigit,
+            modifier = Modifier.weight(1f),
+        )
+        ColorColumn(
+            selectionState = model.digitColors[1],
+            colors = ResColor.FOR_OTHER_DIGIT,
+            display = ::displayDigit,
+            modifier = Modifier.weight(1f),
+        )
+        ColorColumn(
+            selectionState = model.digitColors[2],
+            colors = ResColor.FOR_OTHER_DIGIT,
+            display = ::displayDigit,
+            modifier = Modifier.weight(1f),
+        )
+
+        ColorColumn(
+            selectionState = model.multiplierColor,
+            colors = ResColor.FOR_MULTIPLIER,
+            display = ::displayMultiplier,
+            modifier = Modifier.weight(1f),
+        )
+        ColorColumn(
+            selectionState = model.toleranceColor,
+            colors = ResColor.FOR_TOLERANCE,
+            display = ::displayTolerance,
+            modifier = Modifier.weight(1f),
+        )
+        ColorColumn(
+            selectionState = model.tempCoefficientColor,
+            colors = ResColor.FOR_TEMP_COEFFICIENT,
+            display = ::displayTempCoefficient,
+            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -480,6 +539,84 @@ fun ColorRect(
                     style = TextStyle(color = fg),
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun Graph() {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
+        val gridColor = lerp(
+            MaterialTheme.colorScheme.onSurface,
+            MaterialTheme.colorScheme.surface,
+            0.8f,
+        )
+        Canvas(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+                .aspectRatio(1.5f)
+        ) {
+            val w = size.width
+            val h = size.height
+            // grid
+            val xSteps = 10
+            for (x in 1..<xSteps) {
+                drawLine(
+                    start = Offset(x = w * x.toFloat() / xSteps, y = 0f).round().toOffset(),
+                    end = Offset(x = w * x.toFloat() / xSteps, y = h).round().toOffset(),
+                    color = gridColor,
+                    strokeWidth = 2f,
+                )
+            }
+            val ySteps = 10
+            for (y in 1..<ySteps) {
+                drawLine(
+                    start = Offset(x = 0f, y = h * y.toFloat() / ySteps).round().toOffset(),
+                    end = Offset(x = w, y = h * y.toFloat() / ySteps).round().toOffset(),
+                    color = gridColor,
+                    strokeWidth = 2f,
+                )
+            }
+            drawRoundRect(
+                cornerRadius = CornerRadius(x = 8.dp.toPx(), y = 8.dp.toPx()),
+                topLeft = Offset.Zero,
+                size = Size(width = w, height = h),
+                color = gridColor,
+                style = Stroke(width = 2f),
+            )
+
+            // graph
+            val path = PathData {
+                moveTo(0f, 0f)
+                lineTo(w * 0.1f, h * 0.2f)
+                lineTo(w * 0.2f, h * 0.4f)
+                lineTo(w * 0.3f, h * 0.3f)
+                lineTo(w * 0.4f, h * 0.1f)
+                lineTo(w * 0.5f, h * 0.0f)
+                lineTo(w * 0.6f, h * 0.2f)
+                lineTo(w * 0.7f, h * 0.6f)
+                lineTo(w * 0.8f, h * 1.0f)
+                lineTo(w * 0.9f, h * 0.8f)
+                lineTo(w * 1.0f, h * 0.3f)
+            }.toPath()
+
+            drawPath(
+                path = path,
+                color = Color.Red,
+                style = Stroke(
+                    width = 2.dp.toPx(),
+                    miter = 4.dp.toPx(),
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round,
+                ),
+            )
         }
     }
 }
