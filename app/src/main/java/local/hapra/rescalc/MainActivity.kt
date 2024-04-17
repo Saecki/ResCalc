@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,7 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -59,8 +60,20 @@ fun ResColor.toColor(): Pair<Color, Color> {
     }
 }
 
-fun Int.multiplier(): String {
-    return when (this) {
+fun displayResistance(r: Double): String {
+    val fmt = DecimalFormat("#.##")
+    return when {
+        r < 1000 -> "${fmt.format(r)}Ω"
+        r < 1000_000 -> "${fmt.format(r / 1000)}kΩ"
+        r < 1000_000_000 -> "${fmt.format(r / 1000_000)}MΩ"
+        else -> "${fmt.format(r / 1000_000_000)}GΩ"
+    }
+}
+
+fun displayDigit(value: UInt) = value.toString()
+
+fun displayMultiplier(value: Int): String {
+    return when (value) {
         -2 -> "×0.01"
         -1 -> "×0.1"
         0 -> "×1"
@@ -77,20 +90,11 @@ fun Int.multiplier(): String {
     }
 }
 
-fun Double.tolerance(): String {
-    return DecimalFormat("#.##%").format(this)
+fun displayTolerance(value: Double): String {
+    return DecimalFormat("#.##%").format(value)
 }
 
-fun Double.formatResistance(): String {
-    val r = this
-    val fmt = DecimalFormat("#.##")
-    return when {
-        r < 1000 -> "${fmt.format(r)}Ω"
-        r < 1000_000 -> "${fmt.format(r / 1000)}kΩ"
-        r < 1000_000_000 -> "${fmt.format(r / 1000_000)}MΩ"
-        else -> "${fmt.format(r / 1000_000_000)}GΩ"
-    }
-}
+fun displayTempCoefficient(value: UInt) = value.toString()
 
 class MainViewModel(
     val digitColors: Array<MutableState<Pair<ResColor, UInt>?>> = Array(3) {
@@ -141,7 +145,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Row(
                         verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Resistance(
@@ -163,39 +167,81 @@ class MainActivity : ComponentActivity() {
                     Row(
                         horizontalArrangement = Arrangement.Absolute.SpaceEvenly,
                         verticalAlignment = Alignment.Top,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ColorLine(
+                            selectionState = model.digitColors[0],
+                            display = ::displayDigit,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ColorLine(
+                            selectionState = model.digitColors[1],
+                            display = ::displayDigit,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ColorLine(
+                            selectionState = model.digitColors[2],
+                            display = ::displayDigit,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        ColorLine(
+                            selectionState = model.multiplierColor,
+                            display = ::displayMultiplier,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ColorLine(
+                            selectionState = model.toleranceColor,
+                            display = ::displayTolerance,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ColorLine(
+                            selectionState = model.tempCoefficientColor,
+                            display = ::displayTempCoefficient,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.Absolute.SpaceEvenly,
+                        verticalAlignment = Alignment.Top,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        DigitColumn(
+                        ColorColumn(
                             selectionState = model.digitColors[0],
                             colors = ResColor.FOR_FIRST_DIGIT,
+                            display = ::displayDigit,
                             modifier = Modifier.weight(1f),
                         )
-                        DigitColumn(
+                        ColorColumn(
                             selectionState = model.digitColors[1],
                             colors = ResColor.FOR_OTHER_DIGIT,
+                            display = ::displayDigit,
                             modifier = Modifier.weight(1f),
                         )
-                        DigitColumn(
+                        ColorColumn(
                             selectionState = model.digitColors[2],
                             colors = ResColor.FOR_OTHER_DIGIT,
+                            display = ::displayDigit,
                             modifier = Modifier.weight(1f),
                         )
 
-                        MultiplierColumn(
+                        ColorColumn(
                             selectionState = model.multiplierColor,
                             colors = ResColor.FOR_MULTIPLIER,
+                            display = ::displayMultiplier,
                             modifier = Modifier.weight(1f),
                         )
-
-                        ToleranceColumn(
+                        ColorColumn(
                             selectionState = model.toleranceColor,
                             colors = ResColor.FOR_TOLERANCE,
+                            display = ::displayTolerance,
                             modifier = Modifier.weight(1f),
                         )
-
-                        TempCoefficientColumn(
+                        ColorColumn(
                             selectionState = model.tempCoefficientColor,
                             colors = ResColor.FOR_TEMP_COEFFICIENT,
+                            display = ::displayTempCoefficient,
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -215,76 +261,72 @@ fun Resistance(label: String, value: Double?, modifier: Modifier) {
             else -> MaterialTheme.colorScheme.surface
         }
         Text(
-            text = value?.formatResistance() ?: "●",
+            text = value?.let(::displayResistance) ?: "●",
             textAlign = TextAlign.Center,
             color = textColor,
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.fillMaxWidth()
         )
+        val labelColor = lerp(
+            MaterialTheme.colorScheme.onBackground,
+            MaterialTheme.colorScheme.background,
+            0.5f,
+        )
         Text(
             text = label,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.bodySmall,
+            color = labelColor,
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
             modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
 @Composable
-fun DigitColumn(
-    selectionState: MutableState<Pair<ResColor, UInt>?>,
-    colors: List<Pair<ResColor, UInt?>>,
+fun <T> ColorLine(
+    selectionState: MutableState<Pair<ResColor, T>?>,
+    display: (T) -> String,
     modifier: Modifier,
 ) {
-    ColorColumn(
-        selectionState = selectionState,
-        colors = colors,
-        display = { it.toString() },
-        modifier = modifier,
-    )
-}
+    var selection by selectionState
 
-@Composable
-fun MultiplierColumn(
-    selectionState: MutableState<Pair<ResColor, Int>?>,
-    colors: List<Pair<ResColor, Int>>,
-    modifier: Modifier,
-) {
-    ColorColumn(
-        selectionState = selectionState,
-        colors = colors,
-        display = { it.multiplier() },
-        modifier = modifier,
-    )
-}
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .padding(4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = selection != null) { selection = null }
+            .padding(4.dp)
+    ) {
+        val bg = selection?.first?.toColor()?.first
+            ?: MaterialTheme.colorScheme.surface
+        val elevation = when {
+            selection != null -> 2.dp
+            else -> 0.dp
+        }
+        Surface(
+            shape = RoundedCornerShape(2.dp),
+            color = bg,
+            tonalElevation = elevation,
+            shadowElevation = elevation,
+            modifier = Modifier
+                .padding(4.dp)
+                .width(12.dp)
+                .height(48.dp)
+        ) {}
 
-@Composable
-fun ToleranceColumn(
-    selectionState: MutableState<Pair<ResColor, Double>?>,
-    colors: List<Pair<ResColor, Double?>>,
-    modifier: Modifier,
-) {
-    ColorColumn(
-        selectionState = selectionState,
-        colors = colors,
-        display = { it.tolerance() },
-        modifier = modifier,
-    )
-}
-
-@Composable
-fun TempCoefficientColumn(
-    selectionState: MutableState<Pair<ResColor, UInt>?>,
-    colors: List<Pair<ResColor, UInt?>>,
-    modifier: Modifier,
-) {
-    ColorColumn(
-        selectionState = selectionState,
-        colors = colors,
-        display = { it.toString() },
-        modifier = modifier,
-    )
+        val text = selection?.second?.let(display) ?: "●"
+        val textColor = when {
+            (selection != null) -> MaterialTheme.colorScheme.onBackground
+            else -> MaterialTheme.colorScheme.surface
+        }
+        Text(
+            text = text,
+            maxLines = 1,
+            color = textColor,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
 }
 
 @Composable
@@ -300,19 +342,6 @@ fun <T> ColorColumn(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier,
     ) {
-        selection?.let { (col, value) ->
-            val (bg, _) = col.toColor()
-            ColorLine(
-                color = bg,
-                text = display(value),
-                onClick = { selectionState.value = null },
-            )
-        } ?: run {
-            ColorLine(color = MaterialTheme.colorScheme.surface)
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         colors.forEach { (col, value) ->
             val selected = selection?.first == col
             val text = value?.let(display).orEmpty()
@@ -326,44 +355,6 @@ fun <T> ColorColumn(
                 onClick = onClick,
             )
         }
-    }
-}
-
-@Composable
-fun ColorLine(color: Color, text: String? = null, onClick: (() -> Unit)? = null) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick?.invoke() }
-            .padding(8.dp)
-    )
-    {
-        val elevation = when {
-            text != null -> 2.dp
-            else -> 0.dp
-        }
-        Surface(
-            shape = RoundedCornerShape(2.dp),
-            color = color,
-            tonalElevation = elevation,
-            shadowElevation = elevation,
-            modifier = Modifier
-                .width(12.dp)
-                .height(48.dp)
-        ) {}
-
-        val textColor = when {
-            (text != null) -> MaterialTheme.colorScheme.onBackground
-            else -> MaterialTheme.colorScheme.surface
-        }
-        Text(
-            text = text ?: "●",
-            maxLines = 1,
-            color = textColor,
-            style = MaterialTheme.typography.bodyMedium,
-        )
     }
 }
 
@@ -387,21 +378,23 @@ fun ColorRect(
     }
     val rounding by animateDpAsState(
         targetValue = if (selected) size / 2 else 12.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "RoundingAnimation",
     )
     val outerSize = size + (padding * 2)
     val innerShape = RoundedCornerShape(rounding)
     val outerShape = RoundedCornerShape(rounding + padding)
     Surface(
         color = Color.Transparent,
+        shape = outerShape,
         onClick = { onClick?.invoke() },
         enabled = onClick != null,
         modifier = Modifier
             .size(outerSize)
-            .clip(outerShape)
             .run {
                 if (selected) {
                     background(
+                        shape = outerShape,
                         brush = Brush.sweepGradient(
                             0.0f to Color(0xFFD15CFC),
                             0.3f to Color(0xFF6A82FB),
